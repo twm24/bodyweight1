@@ -50,6 +50,7 @@ view(Young2)
 ggplot(data = Young2, mapping = aes(x = Age, y = Avg.Change, color = SES)) +
   facet_grid(SES ~ sexm1) +
   geom_point() +
+  ylim(-1, 1) +
   geom_smooth(method=lm, se=FALSE, col='black')
   labs(title = "Avg Change",
        x = "Age (yrs)", y = "Average Weight Change (kg/yr)")

@@ -1,5 +1,5 @@
 ---
-title: "Americans"
+title: "Americans, Daasanach"
 output: html_document
 date: "2022-10-28"
 ---
@@ -102,4 +102,32 @@ ggplot(data = Young45, mapping = aes(x = Age, y = Avg.Change, color = SES)) +
   labs(title = "Avg Change",
        x = "Age (yrs)", y = "Average Weight Change (kg/yr)")
 ```
+
+```{r Daasanach 2019 wrangle}
+Daasanach19 <- Daasanach %>%
+  mutate_at(4, ~replace_na(.,0)) %>%
+  select(ID_2019, sex_19, age_19, pregnant, weight_19) %>%
+  filter(pregnant != 1) %>%
+  filter(age_19 >= 22) %>%
+  arrange(ID_2019)
+colnames(Daasanach19)[1] = "id"
+View(Daasanach19)
+```
+
+```{r Daasanach 2022 wrangle}
+Daasanach22 <- Daasanach %>%
+  mutate_at(9, ~replace_na(.,0)) %>%
+  select(ID_2022, sex_22, age_22, pregnant_22, weight_22) %>%
+  filter(pregnant_22 != 1) %>%
+  filter(age_22 >= 22) %>%
+  arrange(ID_2022)
+colnames(Daasanach22)[1] = "id"
+View(Daasanach22)
+```
+
+```{r Daasanach merge}
+DaasanachNew = merge(x=Daasanach19,y=Daasanach22,by="id")
+View(DaasanachNew)
+```
+
 
