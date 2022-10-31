@@ -1,5 +1,5 @@
 ---
-title: "Americans, Daasanach"
+title: "Americans, Daasanach, !KungSan"
 output: html_document
 date: "2022-10-28"
 ---
@@ -150,6 +150,56 @@ ggplot(data = DaasanachYoung, mapping = aes(x = age_22, y = avg_change)) +
   ylim(-2, 2) +
   geom_smooth(method=lm, se=FALSE, col='black') +
   labs(title = "Daasanach",
+       x = "Age (yrs)", y = "Average Weight Change (kg/yr)")
+```
+
+
+```{r date object}
+KungSan <- X_KungSan 
+KungSan$Date<-as.Date(with(KungSan,paste(obsyr4,obsmnth,obsday,sep="-")),"%Y-%m-%d")
+View(KungSan)
+```
+
+```{r}
+KungSan1 <- KungSan %>%
+  arrange(caseid,obsyr4,obsmnth,obsday,Date) %>%
+  group_by(caseid) %>%
+  slice(c(which.min(Date), which.max(Date)))
+KungSan1
+```
+
+```{r}
+KungSanNew <- KungSan1
+KungSanNew$wtkgs <- as.numeric(KungSanNew$wtkgs)
+View(KungSanNew)
+```
+
+
+```{r San Avg Change}
+KungSanNewNew <- KungSanNew %>%
+  group_by(caseid) %>%
+  summarise(avg_change = (max(wtkgs) - min(wtkgs))*365.25/(as.numeric((max(Date) - min(Date)), "days")))
+View(KungSanNewNew)
+```
+
+```{r}
+FinalKungSan = merge(x=KungSanNew,y=KungSanNewNew,by="caseid",all.x=TRUE)
+View(FinalKungSan)
+```
+
+```{r}
+FinalKungSan1 <- FinalKungSan %>%
+  group_by(caseid) %>%
+  slice(c(which.max(ageobs)))
+FinalKungSan1
+```
+```{r}
+ggplot(data = FinalKungSan1, mapping = aes(x = ageobs, y = avg_change)) +
+  facet_grid(. ~ sex) +
+  geom_point() +
+  ylim(-5, 5) +
+  geom_smooth(method=lm, se=FALSE, col='black') +
+  labs(title = "!Kung San",
        x = "Age (yrs)", y = "Average Weight Change (kg/yr)")
 ```
 
