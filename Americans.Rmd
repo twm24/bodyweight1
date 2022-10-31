@@ -98,8 +98,8 @@ ggplot(data = Young45, mapping = aes(x = Age, y = Avg.Change, color = SES)) +
   facet_grid(SES ~ sexm1) +
   geom_point() +
   ylim(-2, 2) +
-  geom_smooth(method=lm, se=FALSE, col='black')
-  labs(title = "Avg Change",
+  geom_smooth(method=lm, se=FALSE, col='black') +
+  labs(title = "Americans",
        x = "Age (yrs)", y = "Average Weight Change (kg/yr)")
 ```
 
@@ -127,7 +127,29 @@ View(Daasanach22)
 
 ```{r Daasanach merge}
 DaasanachNew = merge(x=Daasanach19,y=Daasanach22,by="id")
+DaasanachNew <- DaasanachNew %>%
+  mutate_at(9, ~replace_na(.,0)) %>%
+  filter(weight_22 != 0) %>%
+  mutate(avg_change = (weight_22 - weight_19)/3)
 View(DaasanachNew)
 ```
 
+```{r DaasanachYoung}
+DaasanachYoung <- DaasanachNew %>%
+  filter(age_22 <= 45) %>%
+  mutate(sex_19 = case_when(
+    sex_19 == 1       ~ "male",
+    sex_19 == 0       ~ "female"))
+```
+
+
+```{r }
+ggplot(data = DaasanachYoung, mapping = aes(x = age_22, y = avg_change)) +
+  facet_grid(. ~ sex_19) +
+  geom_point() +
+  ylim(-2, 2) +
+  geom_smooth(method=lm, se=FALSE, col='black') +
+  labs(title = "Daasanach",
+       x = "Age (yrs)", y = "Average Weight Change (kg/yr)")
+```
 
