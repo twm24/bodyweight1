@@ -1,6 +1,8 @@
 ---
 title: "Americans, Daasanach, !KungSan"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 date: "2022-10-28"
 ---
 
@@ -178,26 +180,31 @@ View(KungSanNew)
 ```{r San Avg Change}
 KungSanNewNew <- KungSanNew %>%
   group_by(caseid) %>%
-  summarise(avg_change = (max(wtkgs) - min(wtkgs))*365.25/(as.numeric((max(Date) - min(Date)), "days")))
+  mutate(diff=wtkgs-lag(wtkgs,default=first(wtkgs))) %>%
+  arrange(caseid) %>%
+  mutate(avg_change = (diff)*365.25/(as.numeric((max(Date) - min(Date)), "days")))
 View(KungSanNewNew)
 ```
 
-```{r}
-FinalKungSan = merge(x=KungSanNew,y=KungSanNewNew,by="caseid",all.x=TRUE)
-View(FinalKungSan)
-```
 
 ```{r}
-FinalKungSan1 <- FinalKungSan %>%
+FinalKungSan <- KungSanNewNew %>%
   group_by(caseid) %>%
-  slice(c(which.max(ageobs)))
-FinalKungSan1
+  slice(c(which.max(ageobs))) %>%
+  filter(caseid != 92) %>%
+  filter(ageobs < 60) %>%
+  mutate(sex = case_when(
+    sex == 1       ~ "male",
+    sex == 2       ~ "female"))
+FinalKungSan1 <- na.omit(FinalKungSan)
+View(FinalKungSan1)
 ```
+
 ```{r}
 ggplot(data = FinalKungSan1, mapping = aes(x = ageobs, y = avg_change)) +
   facet_grid(. ~ sex) +
   geom_point() +
-  ylim(-5, 5) +
+  ylim(-10, 10) +
   geom_smooth(method=lm, se=FALSE, col='black') +
   labs(title = "!Kung San",
        x = "Age (yrs)", y = "Average Weight Change (kg/yr)")
