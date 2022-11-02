@@ -15,7 +15,9 @@ Young <- Weight_Change %>%
   filter(TSB != 0) %>%
   filter(Age < 66)
 View(Young)
+View(Weight_Change)
 ```
+
 
 ```{r}
 Old <- Weight_Change %>%
@@ -96,6 +98,11 @@ Young45 <- Young2 %>%
 ```
 
 ```{r}
+install.packages("lme4")
+library(lme4)
+model.1 <- lm(Avg.Change ~ SES, data=Young45) #basic linear model
+model.2 <- lmer(Avg.Change ~ SES + (1|Case.ID)) #linear mixed effects model
+
 ggplot(data = Young45, mapping = aes(x = Age, y = Avg.Change, color = SES)) +
   facet_grid(SES ~ sexm1) +
   geom_point() +
@@ -207,6 +214,33 @@ ggplot(data = FinalKungSan1, mapping = aes(x = ageobs, y = avg_change)) +
   ylim(-10, 10) +
   geom_smooth(method=lm, se=FALSE, col='black') +
   labs(title = "!Kung San",
+       x = "Age (yrs)", y = "Average Weight Change (kg/yr)")
+```
+
+```{r}
+Hadza1 <- Hadza %>%
+  drop_na(TSBdays) %>%
+  mutate(sex = case_when(
+    sex == "F"  ~ "Female",
+    sex == "f"  ~ "Female",
+    sex == "M"  ~ "Male",
+    sex == "m"  ~ "Male"))
+view(Hadza1)
+```
+
+```{r}
+Hadza45 <- Hadza1 %>%
+  filter(age1 <= 45)
+```
+
+
+```{r}
+ggplot(data = Hadza45, mapping = aes(x = age1, y = avgchange)) +
+  facet_grid(. ~ sex) +
+  geom_point() +
+  ylim(-5, 5) +
+  geom_smooth(method=lm, se=FALSE, col='black') +
+  labs(title = "Hadza",
        x = "Age (yrs)", y = "Average Weight Change (kg/yr)")
 ```
 
