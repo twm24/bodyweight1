@@ -10,12 +10,71 @@ date: "2022-10-28"
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+```{r read}
+library(tidyverse)
+library(readr)
+Weight_Change <- read_csv("Weight_Change.csv")
+Daasanach <- read_csv("Daasanach.csv")
+Hadza <- read_csv("Hadza.csv")
+X_KungSan <- read_csv("!KungSan.csv")
+
+```
+
+
 ```{r}
 Young <- Weight_Change %>%
   filter(TSB != 0) %>%
   filter(Age < 66)
-View(Young)
-View(Weight_Change)
+Young
+```
+
+```{r}
+American <- Weight_Change %>%
+  filter(Age <= 45) %>%
+  mutate(proportion = Avg.Change/(lag(Weight))) %>%
+  filter(TSB != 0) %>%
+  filter(TSB < 10)
+
+Americans = merge(x=American,y=SES_Sex,by="id",all.x=TRUE)
+Americans1 <- Americans %>%
+  mutate(sexm1 = case_when(
+    sexm1 == 1       ~ "Male",
+    sexm1 == 2       ~ "Female")) %>%
+  mutate(SES = case_when(
+    SES == 1 ~ "Low",
+    SES == 2 ~ "LowMid",
+    SES == 3 ~ "MidHigh",
+    SES == 4 ~ "High")) %>%
+  mutate(group = "American") %>%
+  select(id, sexm1, Age, group, Avg.Change, proportion)
+View(Americans1)
+```
+
+```{r}
+Americans2 <- Americans %>%
+  mutate(sexm1 = case_when(
+    sexm1 == 1       ~ "Male",
+    sexm1 == 2       ~ "Female")) %>%
+  mutate(SES = case_when(
+    SES == 1 ~ "Low",
+    SES == 2 ~ "LowMid",
+    SES == 3 ~ "MidHigh",
+    SES == 4 ~ "High")) %>%
+  mutate(group = "American") %>%
+  select(id, sexm1, Age, SES, group, Avg.Change, proportion)
+View(Americans2)
+```
+
+
+```{r}
+ggplot(data = Americans1, mapping = aes(x = Age, y = proportion, color = SES)) +
+  facet_grid(SES ~ sexm1) +
+  geom_point() +
+  ylim(-.1, .1) +
+  geom_smooth(method=lm, se=FALSE, col='black') +
+  labs(title = "Americans",
+       x = "Age (yrs)", y = "Proportion of Body Weight Change (kg/yr)") +
+  scale_colour_discrete(limits=c("Low", "LowMid","MidHigh", "High"))
 ```
 
 
@@ -23,7 +82,7 @@ View(Weight_Change)
 Old <- Weight_Change %>%
   filter(TSB != 0) %>%
   filter(Age > 65)
-View(Old)
+Old
 ```
 
 ```{r}
@@ -44,10 +103,9 @@ colnames(Weight_Change)[1] = "id"
 
 ```{r}
 Young1 = merge(x=Young,y=SES_Sex,by="id",all.x=TRUE)
-View(Young1)
 
 Old1 = merge(x=Old,y=SES_Sex,by="id",all.x=TRUE)
-View(Old1)
+Old1
 ```
 
 ```{r}
@@ -61,14 +119,14 @@ ggplot(data = Young2, mapping = aes(x = TSB, y = Avg.Change, color = SES)) +
 ```{r}
 Young2 <- Young1 %>%
   mutate(sexm1 = case_when(
-    sexm1 == 1       ~ "male",
-    sexm1 == 2       ~ "female")) %>%
+    sexm1 == 1       ~ "Male",
+    sexm1 == 2       ~ "Female")) %>%
   mutate(SES = case_when(
     SES == 1 ~ "Low",
     SES == 2 ~ "LowMid",
     SES == 3 ~ "MidHigh",
     SES == 4 ~ "High"))
-view(Young2)
+Young2
 ```
 
 ```{r}
@@ -95,22 +153,46 @@ ggplot(data = Young2, mapping = aes(x = Age, y = Avg.Change, color = SES)) +
 Young45 <- Young2 %>%
   filter(Age < 46) %>%
   filter(TSB <= 10)
+Young45
 ```
 
 ```{r}
-install.packages("lme4")
+#install.packages("lme4")
 library(lme4)
-model.1 <- lm(Avg.Change ~ SES, data=Young45) #basic linear model
-model.2 <- lmer(Avg.Change ~ SES + (1|Case.ID)) #linear mixed effects model
+model.1 <- lm(Avg.Change ~ SES + sexm1, data=Young45) #basic linear model
+summary(model.1)
+Young45$Case.ID <- as.factor(Young45$id)
+#model.2 <- lmer(Avg.Change ~ SES + sexm1 + (1|Case.ID), data=Young45) #linear mixed effects model
+summary(model.1)
+```
 
+
+``` {r graph Americans}
 ggplot(data = Young45, mapping = aes(x = Age, y = Avg.Change, color = SES)) +
   facet_grid(SES ~ sexm1) +
   geom_point() +
-  ylim(-2, 2) +
+  ylim(-5, 5) +
   geom_smooth(method=lm, se=FALSE, col='black') +
   labs(title = "Americans",
-       x = "Age (yrs)", y = "Average Weight Change (kg/yr)")
+       x = "Age (yrs)", y = "Average Weight Change (kg/yr)") +
+  scale_colour_discrete(limits=c("Low", "LowMid","MidHigh", "High"))
 ```
+
+```{r control for TSB less than 10}
+NewYoung45 <- Young45 %>%
+  filter(TSB < 10)
+
+ggplot(data = NewYoung45, mapping = aes(x = Age, y = Avg.Change, color = SES)) +
+  facet_grid(SES ~ sexm1) +
+  geom_point() +
+  ylim(-5, 5) +
+  geom_smooth(method=lm, se=FALSE, col='black') +
+  labs(title = "Americans",
+       x = "Age (yrs)", y = "Average Weight Change (kg/yr)") +
+  scale_colour_discrete(limits=c("Low", "LowMid","MidHigh", "High"))
+
+```
+
 
 ```{r Daasanach 2019 wrangle}
 Daasanach19 <- Daasanach %>%
@@ -120,7 +202,7 @@ Daasanach19 <- Daasanach %>%
   filter(age_19 >= 22) %>%
   arrange(ID_2019)
 colnames(Daasanach19)[1] = "id"
-View(Daasanach19)
+Daasanach19
 ```
 
 ```{r Daasanach 2022 wrangle}
@@ -131,7 +213,7 @@ Daasanach22 <- Daasanach %>%
   filter(age_22 >= 22) %>%
   arrange(ID_2022)
 colnames(Daasanach22)[1] = "id"
-View(Daasanach22)
+Daasanach22
 ```
 
 ```{r Daasanach merge}
@@ -140,15 +222,24 @@ DaasanachNew <- DaasanachNew %>%
   mutate_at(9, ~replace_na(.,0)) %>%
   filter(weight_22 != 0) %>%
   mutate(avg_change = (weight_22 - weight_19)/3)
-View(DaasanachNew)
+DaasanachNew
 ```
 
 ```{r DaasanachYoung}
 DaasanachYoung <- DaasanachNew %>%
   filter(age_22 <= 45) %>%
   mutate(sex_19 = case_when(
-    sex_19 == 1       ~ "male",
-    sex_19 == 0       ~ "female"))
+    sex_19 == 1       ~ "Male",
+    sex_19 == 0       ~ "Female")) %>%
+  mutate(proportion = avg_change/weight_19) %>%
+  mutate(group = "Daasanach")
+
+```
+
+```{r}
+DaasanachYoung1 <- DaasanachYoung %>%
+  select(id, sex_19, age_22, group, avg_change, proportion)
+
 ```
 
 
@@ -156,7 +247,7 @@ DaasanachYoung <- DaasanachNew %>%
 ggplot(data = DaasanachYoung, mapping = aes(x = age_22, y = avg_change)) +
   facet_grid(. ~ sex_19) +
   geom_point() +
-  ylim(-2, 2) +
+  ylim(-5, 5) +
   geom_smooth(method=lm, se=FALSE, col='black') +
   labs(title = "Daasanach",
        x = "Age (yrs)", y = "Average Weight Change (kg/yr)")
@@ -166,7 +257,7 @@ ggplot(data = DaasanachYoung, mapping = aes(x = age_22, y = avg_change)) +
 ```{r date object}
 KungSan <- X_KungSan 
 KungSan$Date<-as.Date(with(KungSan,paste(obsyr4,obsmnth,obsday,sep="-")),"%Y-%m-%d")
-View(KungSan)
+
 ```
 
 ```{r}
@@ -174,13 +265,13 @@ KungSan1 <- KungSan %>%
   arrange(caseid,obsyr4,obsmnth,obsday,Date) %>%
   group_by(caseid) %>%
   slice(c(which.min(Date), which.max(Date)))
-KungSan1
+
 ```
 
 ```{r}
 KungSanNew <- KungSan1
 KungSanNew$wtkgs <- as.numeric(KungSanNew$wtkgs)
-View(KungSanNew)
+
 ```
 
 
@@ -190,7 +281,9 @@ KungSanNewNew <- KungSanNew %>%
   mutate(diff=wtkgs-lag(wtkgs,default=first(wtkgs))) %>%
   arrange(caseid) %>%
   mutate(avg_change = (diff)*365.25/(as.numeric((max(Date) - min(Date)), "days")))
-View(KungSanNewNew)
+
+KungSanNewNew <- KungSanNewNew %>%
+  mutate(proportion = avg_change/(lag(wtkgs)))
 ```
 
 
@@ -201,9 +294,11 @@ FinalKungSan <- KungSanNewNew %>%
   filter(caseid != 92) %>%
   filter(ageobs < 60) %>%
   mutate(sex = case_when(
-    sex == 1       ~ "male",
-    sex == 2       ~ "female"))
-FinalKungSan1 <- na.omit(FinalKungSan)
+    sex == 1       ~ "Male",
+    sex == 2       ~ "Female"))
+FinalKungSan1 <- na.omit(FinalKungSan)%>%
+  mutate(group = "Kung") %>%
+  select(caseid, sex, ageobs, group, avg_change, proportion)
 View(FinalKungSan1)
 ```
 
@@ -213,7 +308,7 @@ ggplot(data = FinalKungSan1, mapping = aes(x = ageobs, y = avg_change)) +
   geom_point() +
   ylim(-10, 10) +
   geom_smooth(method=lm, se=FALSE, col='black') +
-  labs(title = "!Kung San",
+  labs(title = "!Kung",
        x = "Age (yrs)", y = "Average Weight Change (kg/yr)")
 ```
 
@@ -225,12 +320,37 @@ Hadza1 <- Hadza %>%
     sex == "f"  ~ "Female",
     sex == "M"  ~ "Male",
     sex == "m"  ~ "Male"))
-view(Hadza1)
+View(Hadza)
 ```
+
+```{r}
+Hadza3 <- Hadza %>%
+  filter(age2 < 46) %>%
+  select(caseid, avgchange) %>%
+  na.omit(avgchange)
+
+Hadza4 = merge(x=Hadza3,y=Hadza,by="caseid",all.x=TRUE)
+View(Hadza4)
+
+Hadza5 <- Hadza4 %>%
+  group_by(caseid) %>%
+  slice_min(age2) %>%
+  mutate(proportion = avgchange.x/weight) %>%
+  mutate(group = "Hadza") %>%
+  select(caseid, sex, age2, group, avgchange.x, proportion) %>%
+  mutate(sex = case_when(
+    sex == "F"  ~ "Female",
+    sex == "f"  ~ "Female",
+    sex == "M"  ~ "Male",
+    sex == "m"  ~ "Male"))
+View(Hadza5)
+```
+
 
 ```{r}
 Hadza45 <- Hadza1 %>%
   filter(age1 <= 45)
+View(Hadza45)
 ```
 
 
@@ -242,5 +362,28 @@ ggplot(data = Hadza45, mapping = aes(x = age1, y = avgchange)) +
   geom_smooth(method=lm, se=FALSE, col='black') +
   labs(title = "Hadza",
        x = "Age (yrs)", y = "Average Weight Change (kg/yr)")
+
 ```
 
+```{r renaming}
+colnames(Americans1)[2] = "sex"
+colnames(Americans1)[3] = "age"
+colnames(Americans1)[5] = "avgchange"
+colnames(DaasanachYoung1)[2] = "sex"
+colnames(DaasanachYoung1)[3] = "age"
+colnames(DaasanachYoung1)[5] = "avgchange"
+colnames(FinalKungSan1)[1] = "id"
+colnames(FinalKungSan1)[3] = "age"
+colnames(FinalKungSan1)[5] = "avgchange"
+colnames(Hadza5)[1] = "id"
+colnames(Hadza5)[3] = "age"
+colnames(Hadza5)[5] = "avgchange"
+Combined <- rbind(Americans1, DaasanachYoung1, FinalKungSan1, Hadza5)
+View(Combined)
+```
+
+```{r}
+ggplot(Combined, aes(x=group, y=avgchange)) + 
+  geom_boxplot() +
+  ylim(-1, 1)
+```

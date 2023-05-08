@@ -1,0 +1,549 @@
+---
+title: "Final"
+output: html_document
+date: "2023-03-09"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r read}
+library(tidyverse)
+library(readr)
+Weight_Change <- read_csv("Weight_Change.csv")
+AmBMI <- read_csv("BMI1.csv")
+AmBMI5 <- read_csv("AmericanHeight.csv")
+```
+
+```{r}
+American2.0 <- Weight_Change %>%
+  filter(Age <= 45) %>%
+  mutate(proportion = Avg.Change/(lag(Weight))) %>%
+  filter(TSB != 0) %>%
+  filter(TSB < 8) %>%
+  group_by(Case.ID) %>%
+  slice(c(which.min(TSB)))
+```
+
+```{r}
+Amer_sex <- AmbmiSES %>%
+  select(id, sexm1)
+
+AmericansBMI_new <- AmericansBMI_clinic %>%
+  filter(tsp < 8) %>%
+  slice(c(which.min(tsp)))
+
+Americans3.0 = merge(x=AmericansBMI_new,y=Amer_sex,by="id",all.x=TRUE)
+
+Americans3.0 <- Americans3.0 %>%
+  group_by(id) %>%
+  sample_n(1) %>%
+  mutate(group = "American")
+
+View(AmbmiSES)
+```
+
+```{r}
+Americans_all3 <- Americans3.0 %>%
+  select(id, sexm1, age, group, avgchange_bmi)
+
+Daasanach_all1 <- Daasanach_all %>%
+  select(id, sex, age, group, avgchange_bmi)
+
+Hadza_all1 <- Hadza_all %>%
+  select(id, sex.x, age, group, avgchange_bmi)
+
+Kung_all1 <- Kung_all %>%
+  select(id, sex.x, ageobs.x, group, avgchange_bmi)
+
+
+colnames(Americans_all3)[5] = "avgchange_bmi"
+colnames(Americans_all3)[2] = "sex"
+
+colnames(Hadza_all1)[2] = "sex"
+
+colnames(Kung_all1)[2] = "sex"
+colnames(Kung_all1)[3] = "age"
+
+
+Combined_all1 <- rbind(Americans_all3, Daasanach_all1, Hadza_all1, Kung_all1)
+View(Combined_all1)
+```
+
+
+```{r}
+ggplot(Combined_all1, aes(x=group, y=avgchange_bmi, fill = group)) + 
+  geom_boxplot() +
+  theme(legend.position="none") +
+  coord_cartesian(ylim=c(-1.5,1.5)) +
+    labs(title = "Average Change in BMI per Year by Population",
+       x = "Population", y = "Average Change (units BMI/yr)")
+```
+
+```{r ANOVA to see if different from zero}
+# Calculate the mean and standard deviation for each group
+#combined_stats <- aggregate(Combined_all1$avgchange_bmi, list(Combined_all1$group), 
+                          #  function(x) c(mean = mean(x), sd = sd(x)))
+
+
+combined_stats <- aggregate(avgchange_bmi ~ group, data = Combined_all1, FUN = mean)
+
+ttest_results <- list()
+for (i in 1:length(combined_stats$group)) {
+  group_data <- Combined_all1$avgchange_bmi[Combined_all1$group == combined_stats$group[i]]
+  ttest_results[[i]] <- t.test(group_data, mu = 0)
+}
+
+ttest_results
+```
+
+
+```{r}
+summary_avgchangebmi <- Combined_all1 %>%
+  group_by(group) %>%
+  na.omit(avgchange_bmi) %>%
+  summarize(median(avgchange_bmi))
+summary_avgchangebmi
+```
+
+```{r}
+anova.7 <- aov(avgchange_bmi ~ group, data=Combined_all)
+summary(anova.7)
+anova.thsd7 <- TukeyHSD(anova.7)
+anova.thsd7
+plot(anova.thsd7)
+```
+
+```{r}
+AmbmiSES_initial <- AmbmiSES %>%
+  group_by(id) %>%
+  slice(c(which.min(Age)))
+
+AmbmiSES_final <- AmbmiSES %>%
+  group_by(id) %>%
+  slice(c(which.max(Age)))
+View(AmbmiSES_initial)
+```
+
+```{r}
+AmBMI_SESmale_in <- AmbmiSES_initial %>%
+  filter(sexm1 == "Male")
+AmBMI_SESfemale_in <- AmbmiSES_initial %>%
+  filter(sexm1 == "Female")
+AmBMI_SESmale_fin <- AmbmiSES_final %>%
+  filter(sexm1 == "Male")
+AmBMI_SESfemale_fin <- AmbmiSES_final %>%
+  filter(sexm1 == "Female")
+
+ggplot(AmBMI_SESmale_in, aes(x=SES, y=BMI, fill = SES)) + 
+  geom_boxplot() +
+  scale_x_discrete(limits = c("Low", "LowMid", "MidHigh", "High")) +
+  theme(legend.position="none") +
+  coord_cartesian() +
+  labs(title = "Initial BMI of American Males",
+       x = "SES", y = "BMI")
+
+ggplot(AmBMI_SESmale_fin, aes(x=SES, y=BMI, fill = SES)) + 
+  geom_boxplot() +
+  scale_x_discrete(limits = c("Low", "LowMid", "MidHigh", "High")) +
+  theme(legend.position="none") +
+  coord_cartesian() +
+  labs(title = "Final BMI of American Males",
+       x = "SES", y = "BMI")
+```
+```{r}
+mean_malebmi <- AmBMI_SESmale_in %>%
+  group_by(group) %>%
+  summarize(median(BMI))
+mean_malebmi
+
+mean_femalebmi <- AmBMI_SESfemale_in %>%
+  group_by(group) %>%
+  summarize(median(BMI))
+mean_femalebmi
+
+AmBMI_SESfemale_in
+```
+
+```{r}
+Daasmean_femalebmi <- Daasanach_all %>%
+  filter(sex == "Female") %>%
+  summarize(median(bmi_19))
+Daasmean_femalebmi
+Daasanach_all
+```
+
+
+```{r}
+KungBMIfemale_in <- KungBMI2 %>%
+  filter(pregnt < 1) %>%
+  filter(diff.bmi == 0.00000000) %>%
+  filter(sex == 2) %>%
+  mutate(group = "Kung") %>%
+  group_by(group) %>%
+  summarize(median(bmi))
+KungBMIfemale_in
+```
+
+```{r}
+HadzaBMI_female_in <- HadzaBMI %>%
+  group_by(caseid) %>%
+  slice(c(which.min(age1))) %>%
+   mutate(sex = case_when(
+    sex == "F"  ~ "Female",
+    sex == "f"  ~ "Female",
+    sex == "M"  ~ "Male",
+    sex == "m"  ~ "Male")) %>%
+  filter(sex == "Female") %>%
+  mutate(bmi = weight/((height)/100)^2) %>%
+  mutate(group = "Hadza") %>%
+  group_by(group) %>%
+  summarize(median(bmi))
+HadzaBMI_female_in
+```
+```{r}
+Am_avgbmiSES3_calc_m <- Am_avgbmiSES3 %>%
+  filter(sexm1 == "Male") %>%
+  mutate(group = "AmMale") %>%
+  group_by(group) %>%
+  summarize(median(avgchange_bmi))
+Am_avgbmiSES3_calc_m
+```
+```{r}
+Daasanach_calc_f <- Daasanach_all1 %>%
+  filter(sex == "Female") %>%
+  group_by(group) %>%
+  summarize(median(avgchange_bmi))
+Daasanach_calc_f
+```
+```{r}
+Kung_calc_m <- Kung_all1 %>%
+  filter(sex == "Male") %>%
+  group_by(group) %>%
+  na.omit(avgchange_bmi) %>%
+  summarize(median(avgchange_bmi))
+Kung_calc_m
+```
+```{r}
+Hadza_calc_m <- Hadza_all1 %>%
+  filter(sex == "Male") %>%
+  na.omit(avgchange_bmi) %>%
+  group_by(group) %>%
+  summarize(median(avgchange_bmi))
+Hadza_calc_m
+```
+
+```{r}
+Hadza_calc_m <- Hadza_all1 %>%
+  filter(sex == "Male") %>%
+  na.omit(avgchange_bmi) %>%
+  group_by(group) %>%
+  summarize(median(avgchange_bmi))
+Hadza_calc_m
+```
+
+```{r}
+
+
+
+All_calc_m <- Combined_all1 %>%
+  filter(sex == "Male") %>%
+  filter(group == "American") %>%
+  na.omit(avgchange_bmi) #%>%
+  #group_by(group) %>%
+  #summarize(median(avgchange_bmi))
+All_calc_m
+numerical_data <- subset(All_calc_m, select=c("avgchange_bmi"))
+sd(numerical_data$avgchange_bmi)
+```
+All_calc_f <- Combined_all1 %>%
+  filter(sex == "Female") %>%
+  na.omit(avgchange_bmi) %>%
+  group_by(group) %>%
+  summarize(median(avgchange_bmi))
+All_calc_f
+```
+```
+
+
+
+```{r}
+Am_avgbmiSES2.0 <- Am_avgbmiSES1 %>%
+  filter(tsp < 8) %>%
+  group_by(id) %>%
+  slice(c(which.min(tsp)))
+View(Am_avgbmiSES2.0)
+```
+  
+```{r}
+Am_avgbmiSES3 <- Am_avgbmiSES2.0 %>%
+    mutate(clinical = case_when(
+    BMI < 18.5       ~ "Underweight",
+    BMI >= 18.5 & BMI < 25    ~ "Healthy",
+    BMI >= 25 & BMI < 30    ~ "Overweight",
+    BMI >= 30     ~"Obese"))
+View(Am_avgbmiSES3)
+```
+  
+```{r}
+Am_avgbmiSES4f <- Am_avgbmiSES3 %>%
+  filter(sexm1 == "Female") %>%
+  group_by(SES) %>%
+  summarize(median(BMI))
+  
+Am_avgbmiSES4m <- Am_avgbmiSES3 %>%
+  filter(sexm1 == "Male") %>%
+  group_by(SES) %>%
+  summarize(median(BMI))
+
+Am_avgbmiSES4m
+Am_avgbmiSES4f
+```
+```{r}
+Am_avgbmiSES5m <- Am_avgbmiSES3 %>%
+  filter(sexm1 == "Male")
+
+anova.9 <- aov(BMI ~ SES, data=Am_avgbmiSES5m)
+summary(anova.9)
+anova.thsd9 <- TukeyHSD(anova.9)
+anova.thsd9
+plot(anova.thsd9)
+
+```
+
+```{r}
+AmBMI_clin5 <- Am_avgbmiSES3 %>%
+  group_by(SES) %>%
+  summarize(percent = mean(clinical == "Obese"))
+AmBMI_clin5
+```
+  
+  
+``` {r}
+AmBMI_clin3 <- Am_avgbmiSES3 %>%
+  group_by(SES, sexm1) %>%
+  summarize(percent = mean(clinical == "Obese"))
+AmBMI_clin3
+
+#AmBMI_clinpercent$sd <- sd(AmBMI_clinpercent$percent)
+
+ggplot(AmBMI_clin3, aes(x = SES, y = percent, fill = sexm1)) +
+  geom_col(position = "dodge") +
+  #scale_fill_manual(values=c("#AA4499","#44AA99")) +
+  #geom_errorbar(aes(ymin = percent - sd, ymax = percent + sd),
+                #width = 0.2, position = position_dodge(0.9)) +
+  scale_x_discrete(limits = c("Low", "LowMid", "MidHigh", "High")) +
+  scale_fill_discrete(name = "Sex") +
+    labs(title = "Proportion of Obese Individuals by SES Group",
+       x = "SES", y = "Proportion of Obese Individuals")
+ 
+
+```
+
+```{r}
+ggplot(Am_avgbmiSES3, aes(x=SES, y=avgchange_bmi, fill = sexm1)) + 
+  geom_boxplot() +
+  scale_x_discrete(limits = c("Low", "LowMid", "MidHigh", "High")) +
+  #theme(legend.position="none") +
+  coord_cartesian(ylim=c(-1.5,1.5)) +
+  scale_fill_discrete(name = "Sex") +
+    labs(title = "Average Change in BMI by SES",
+       x = "SES", y = "Average Change in BMI/year")
+
+
+```
+  
+```{r}
+Am_avgbmiSES3_f <- Am_avgbmiSES3 %>%
+  filter(sexm1 == "Female")
+View(Am_avgbmiSES3_f)
+
+anova.8 <- aov(avgchange_bmi ~ SES, data=Am_avgbmiSES3_f)
+summary(anova.8)
+anova.thsd8 <- TukeyHSD(anova.8)
+anova.thsd8
+plot(anova.thsd8)
+```
+  
+
+
+```{r}
+# Define the slopes and intercepts
+m1 <- 0.2142
+b1 <- 24.97
+m2 <- -0.0186
+b2 <- 18.00
+m3<- -0.1283
+b3 <- 19.26
+m4 <- 0.1031
+b4 <- 19.77
+
+hline_y <- 30
+hline_y2 <- 18.5
+
+#shading_y <- c(hline_y, max(df1$y))
+#shading_df <- data.frame(x = c(0, 40, 40, 0), y = shading_y)
+
+# Create data frames with x and y values for each line
+df1 <- data.frame(x = c(0, 40), y = c(m1*0+b1, m1*40+b1), Population = "Americans")
+df2 <- data.frame(x = c(0, 40), y = c(m2*0+b2, m2*40+b2), Population = "Daasanach")
+df3 <- data.frame(x = c(0, 40), y = c(m3*0+b3, m3*40+b3), Population = "Kung")
+df4 <- data.frame(x = c(0, 40), y = c(m4*0+b4, m4*40+b4), Population = "Hadza")
+
+# Plot both lines using ggplot2
+ggplot() +
+  geom_line(data = df1, aes(x, y, color = Population), size = 1.5) +
+  geom_line(data = df2, aes(x, y, color = Population), size = 1.5) +
+  geom_line(data = df3, aes(x, y, color = Population), size = 1.5) +
+  geom_line(data = df4, aes(x, y, color = Population), size = 1.5) +
+  geom_hline(yintercept = hline_y, linetype = "dotted", size = 1.5) +
+  scale_color_manual(values = c("red", "blue", "forestgreen", "gold" ), 
+                     labels = c("Americans", "Daasanach", "Kung", "Hadza")) +
+  labs(fill = "Population") +
+  #geom_hline(yintercept = hline_y2, linetype = "dotted", size = 1.5) +
+  labs(x = "Years from Baseline", y = "BMI", title = "Male BMI Projections by Population")
+
+```
+
+```{r}
+# Define the slopes and intercepts
+m1 <- 0.2262
+b1 <- 23.63
+m2 <- 0.0226
+b2 <- 17.91
+m3<- 0.0193
+b3 <- 16.16
+m4 <- 0.0509
+b4 <- 20.72
+
+hline_y <- 30
+hline_y2 <- 18.5
+
+shading_y <- c(hline_y, max(df1$y))
+shading_df <- data.frame(x = c(0, 40, 40, 0), y = shading_y)
+
+# Create data frames with x and y values for each line
+df1 <- data.frame(x = c(0, 40), y = c(m1*0+b1, m1*40+b1), Population = "Americans")
+df2 <- data.frame(x = c(0, 40), y = c(m2*0+b2, m2*40+b2), Population = "Daasanach")
+df3 <- data.frame(x = c(0, 40), y = c(m3*0+b3, m3*40+b3), Population = "Kung")
+df4 <- data.frame(x = c(0, 40), y = c(m4*0+b4, m4*40+b4), Population = "Hadza")
+
+# Plot both lines using ggplot2
+ggplot() +
+  geom_line(data = df1, aes(x, y, color = Population), size = 1.5) +
+  geom_line(data = df2, aes(x, y, color = Population), size = 1.5) +
+  geom_line(data = df3, aes(x, y, color = Population), size = 1.5) +
+  geom_line(data = df4, aes(x, y, color = Population), size = 1.5) +
+  geom_hline(yintercept = hline_y, linetype = "dotted", size = 1.5) +
+  scale_color_manual(values = c("red", "blue", "forestgreen", "gold" ), 
+                     labels = c("Americans", "Daasanach", "Kung", "Hadza")) +
+  labs(fill = "Population") +
+  #geom_hline(yintercept = hline_y2, linetype = "dotted", size = 1.5) +
+  labs(x = "Years from Baseline", y = "BMI", title = "Female BMI Projections by Population")
+
+```
+
+```{r}
+Amer_sex <- AmbmiSES %>%
+  select(id, sexm1)
+
+Americans4.0 = merge(x=AmericansBMI_clinic,y=Amer_sex,by="id",all.x=TRUE)
+
+Americans4.01 <- Americans4.0 %>%
+  group_by(id, tsp) %>%
+  sample_n(1) %>%
+  mutate(group = "American")
+View(Americans4.01)
+```
+
+```{r}
+AmBMI7 <- AmBMINew %>%
+  mutate(BMI = weight_kg/(height^2)) %>%
+  filter(age <= 60)
+AmBMI7
+```
+
+
+```{r}
+Amer_tsb_final
+AmBMI60 <- AmBMI7 %>%
+  filter(age < 61)
+AmBMI60
+```
+```{r}
+AmBMI60_final
+```
+
+```{r}
+Amer_tsb_final <- Amer_tsb %>%
+  group_by(id) %>%
+  slice(c(which.min(TSB)))
+#Amer_tsb_final
+colnames(Amer_tsb_final)[5] = "st.age"
+
+
+AmBMI60_final = merge(x=AmBMI60,y=Amer_tsb_final,by="id",all.x=TRUE)
+#View(AmBMI60_final)
+
+colnames(AmBMI60_final)[6] = "tsp"
+
+wave_calc <- AmBMI60_final %>%
+  mutate(wave = case_when(
+    tsp == 8 & age-st.age == 8  ~ "1994",
+    tsp == 8 & age-st.age == 13  ~ "2002",
+    tsp == 8 & age-st.age == 16  ~ "2002", 
+    tsp == 0  ~ "1986",
+    tsp == 3  ~ "1989",
+    tsp == 5  ~ "1994",
+    tsp == 9  ~ "2011",
+    tsp == 13  ~ "2002",
+    tsp == 16  ~ "2002",
+    tsp == 17  ~ "2011",
+    tsp == 22  ~ "2011",
+    tsp == 25  ~ "2011"))
+View(wave_calc)
+```
+
+
+```{r}
+wave_calc_all <- wave_calc %>%
+  group_by(wave) %>%
+  summarize(median = median(BMI),
+            sd = sd(BMI))
+wave_calc_all
+
+ggplot(wave_calc_all_new, aes(x = wave, y = median)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = TRUE, color = "red") +
+  coord_cartesian(ylim=c(24,29)) +
+    labs(title = "Median BMI of American Population Across Adulthood",
+       x = "Year", y = "Median BMI")
+```
+
+```{r}
+
+wave_calc_all$wave <- as.numeric(factor(wave_calc_all$wave))
+
+wave_calc_all_new <- wave_calc_all %>%
+  mutate(wave = case_when(
+    wave == 1 ~ 1986,
+    wave == 2 ~ 1989,
+    wave == 3 ~ 1994,
+    wave == 4 ~ 2002,
+    wave == 5 ~ 2011))
+
+AmBMI60_final
+```
+
+```{r}
+library(lme4)
+model.2a <- lmer(BMI ~ age + (1|id), data=AmBMI60_final)
+summary(model.2a)
+model.2a
+```
+
+```{r}
+View(KungSanNew)
+```
+

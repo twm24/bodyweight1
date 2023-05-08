@@ -1,0 +1,401 @@
+---
+title: "BMI"
+output: html_document
+date: "2023-02-18"
+---
+
+```{r read}
+library(tidyverse)
+library(readr)
+Weight_Change <- read_csv("Weight_Change.csv")
+Daasanach <- read_csv("Daasanach.csv")
+Hadza <- read_csv("Hadza.csv")
+X_KungSan <- read_csv("!KungSan.csv")
+AmBMI <- read_csv("BMI1.csv")
+AmBMI5 <- read_csv("AmericanHeight.csv")
+DaasBMI19 <- read_csv("DaasBMI.csv")
+DaasBMI22 <- read_csv("DaasBMI22.csv")
+KungBMI <- read_csv("KungHeight.csv")
+```
+
+```{r calculate BMI}
+AmBMINew = merge(x=AmBMI,y=AmBMI5,by="id",all.x=TRUE)
+colnames(AmBMINew)[7] = "height"
+AmBMI4 <- AmBMINew %>%
+  mutate(BMI = weight_kg/(height^2)) %>%
+  filter(age <= 45)
+
+```
+
+```{r}
+AmBMI3 <- AmBMI4 %>%
+  filter(height > 0) %>%
+  select(id, weight_kg, BMI)
+colnames(AmBMI3)[2] = "Weight"
+
+Amweight_h = merge(x=Amweight,y=AmBMI5,by="id",all.x=TRUE)
+
+Amweight_h <- Amweight_h %>%
+  mutate(BMI = Weight/(height_m^2))
+
+AmweightSES = merge(x=Amweight_h,y=SES_Sex,by="id",all.x=TRUE)
+
+AmbmiSES <- AmweightSES %>%
+  mutate(sexm1 = case_when(
+    sexm1 == 1       ~ "Male",
+    sexm1 == 2       ~ "Female")) %>%
+  mutate(SES = case_when(
+    SES == 1 ~ "Low",
+    SES == 2 ~ "LowMid",
+    SES == 3 ~ "MidHigh",
+    SES == 4 ~ "High")) %>%
+  mutate(group = "American") %>%
+  select(id, sexm1, Age, group, Weight, BMI, SES)
+View(AmbmiSES)
+```
+
+
+```{r}
+colnames(AmBMI4)[6] = "tsp"
+AmericansBMI <- AmBMI4 %>%
+  group_by(id) %>%
+  mutate(diff.bmi=BMI-lag(BMI,default=first(BMI))) %>%
+  filter(tsp != 0)
+
+AmericansBMI1 <- AmericansBMI %>%
+  mutate(avgchange_bmi = (diff.bmi)/(tsp)) %>%
+  filter(height > 0) %>%
+  select(-height_in, -height_m.x)
+View(AmericansBMI1)
+
+```
+
+```{r}
+AmericansBMI_clinic <- AmericansBMI1 %>%
+  mutate(clinical = case_when(
+    BMI < 18.5       ~ "Underweight",
+    BMI >= 18.5 & BMI < 25    ~ "Healthy",
+    BMI >= 25 & BMI < 30    ~ "Overweight",
+    BMI >= 30     ~"Obese"))
+View(AmericansBMI_clinic)
+```
+
+```{r}
+AmBMI_clinic = merge(x=AmericansBMI_clinic,y=SES_Sex,by="id",all.x=TRUE)
+
+AmBMI_clinic <- AmBMI_clinic %>%
+  mutate(sexm1 = case_when(
+    sexm1 == 1       ~ "Male",
+    sexm1 == 2       ~ "Female")) %>%
+  mutate(SES = case_when(
+    SES == 1 ~ "Low",
+    SES == 2 ~ "LowMid",
+    SES == 3 ~ "MidHigh",
+    SES == 4 ~ "High")) %>%
+View(AmBMI_clinic)
+```
+
+```{r}
+ggplot(AmBMI_clinic, aes(x=clinical, y=avgchange_bmi, fill = sexm1)) + 
+  geom_boxplot() +
+  coord_cartesian(ylim=c(-1,1)) +
+  scale_x_discrete(limits = c("Underweight", "Healthy", "Overweight", "Obese")) +
+    labs(title = "Average Change in BMI by Clincal Status",
+       x = "Clinical Status", y = "Average Change (units BMI/yr)")
+```
+
+``` {r}
+AmBMI_clinpercent <- AmBMI_clinic %>%
+  group_by(SES, sexm1) %>%
+  summarize(percent = mean(clinical == "Obese"))
+View(AmBMI_clinpercent)
+
+#AmBMI_clinpercent$sd <- sd(AmBMI_clinpercent$percent)
+
+ggplot(AmBMI_clinpercent, aes(x = SES, y = percent, fill = sexm1)) +
+  geom_col(position = "dodge") +
+  #geom_errorbar(aes(ymin = percent - sd, ymax = percent + sd),
+                #width = 0.2, position = position_dodge(0.9)) +
+  scale_x_discrete(limits = c("Low", "LowMid", "MidHigh", "High")) +
+    labs(title = "Percentage of Individuals Obese by SES Group",
+       x = "SES", y = "Percentage of Obese Individuals")
+ 
+
+```
+
+
+```{r}
+Am_avgbmiSES = merge(x=AmericansBMI1,y=SES_Sex,by="id",all.x=TRUE)
+
+Am_avgbmiSES1 <- Am_avgbmiSES %>%
+  mutate(sexm1 = case_when(
+    sexm1 == 1       ~ "Male",
+    sexm1 == 2       ~ "Female")) %>%
+  mutate(SES = case_when(
+    SES == 1 ~ "Low",
+    SES == 2 ~ "LowMid",
+    SES == 3 ~ "MidHigh",
+    SES == 4 ~ "High"))
+```
+
+
+```{r merge with American, still need SES?}
+Americans_all = merge(x=Americans1,y=AmericansBMI1,by="id",all.x=TRUE)
+Americans_all <- Americans_all %>%
+  select(-age)
+View(Americans_all)
+```
+
+```{r calculate avgchange_bmi for Daas}
+colnames(DaasBMI19)[2] = "bmi_19"
+DaasBMI22 <- DaasBMI22 %>%
+  mutate(bmi_22=weight/((height/100)^2))
+colnames(DaasBMI19)[1] = "id"
+
+DaasBMIall = merge(x=DaasBMI19,y=DaasBMI22,by="id",all.x=TRUE)
+DaasBMIall <- DaasBMIall %>%
+  select(-height, -weight) %>%
+  na.omit(bmi_22, bmi_19)
+DaasBMIall[DaasBMIall == '#DIV/0!'] <- 0
+DaasBMIall$bmi_19 = as.numeric(as.character(DaasBMIall$bmi_19)) 
+DaasBMIall <- DaasBMIall %>%
+  filter(bmi_19 > 0) %>%
+  mutate(avgchange_bmi = (bmi_22 - bmi_19)/3)
+View(DaasBMIall)
+```
+
+```{r merge DMI with Daas data}
+Daasanach_all = merge(x=DaasanachYoung1,y=DaasBMIall,by="id",all.x=TRUE)
+
+Daasanach_all <- Daasanach_all %>%
+  mutate(avgBMI = (bmi_22+bmi_19)/2)
+View(Daasanach_all)
+```
+
+```{r}
+HadzaBMI <- Hadza %>%
+  arrange(caseid,age1) %>%
+  group_by(caseid) %>%
+  slice(c(which.min(age1), which.max(age1)))
+
+HadzaBMI$height = as.numeric(as.character(HadzaBMI$height))
+HadzaBMI <- HadzaBMI %>%
+  mutate(bmi = weight/((height)/100)^2) %>%
+  mutate(diff.bmi=bmi-lag(bmi,default=first(bmi))) %>%
+  group_by(caseid) %>%
+  slice(c(which.max(age1))) %>%
+  mutate(avgchange_bmi = diff.bmi/TSByr) %>%
+  na.omit(avgchange_bmi)
+```
+
+```{r Hadza merge}
+colnames(HadzaBMI)[1] = "id"
+Hadza_all = merge(x=Hadza5,y=HadzaBMI,by="id",all.x=TRUE)
+View(Hadza_all)
+```
+
+```{r}
+View(KungBMI1)
+```
+
+```{r KungSan}
+colnames(KungSan)[1] = "id"
+KungBMI1 = merge(x=KungSan,y=KungBMI,by="id",all.x=TRUE)
+KungBMI1[KungBMI1 == NA] <- 0
+KungBMI1$htcms = as.numeric(as.character(KungBMI1$htcms)) 
+KungBMI1$wtkgs = as.numeric(as.character(KungBMI1$wtkgs)) 
+
+KungBMI2 <- KungBMI1 %>%
+  filter(htcms > 0) %>%
+  group_by(id) %>%
+  slice(c(which.min(Date), which.max(Date))) %>%
+  mutate(diff.time=Date-lag(Date,default=first(Date))) %>%
+  mutate(diff.time = diff.time/365.25) %>%
+  mutate(bmi = wtkgs/((htcms/100)^2)) %>%
+  mutate(diff.bmi=bmi-lag(bmi,default=first(bmi)))
+
+KungBMI2$diff.time <- as.difftime(KungBMI2$diff.time, units = "days")
+KungBMI2$diff.time <- as.numeric(KungBMI2$diff.time)
+View(KungBMI2)
+```
+
+```{r}
+KungBMI2 <- KungBMI2 %>%
+  mutate(avgchange_bmi = diff.bmi/(diff.time)) %>%
+  filter(pregnt < 1) %>%
+  filter(diff.bmi != 0.00000000)
+```
+
+```{r merge Kung San}
+colnames(FinalKungSan1)[1] = "id"
+Kung_all = merge(x=FinalKungSan1,y=KungBMI2,by="id",all.x=TRUE)
+View(Kung_all)
+```
+
+
+```{r}
+Americans_all1 <- Americans_all %>%
+  select(id, sexm1, Age, group, Avg.Change, proportion, avgchange_bmi)
+
+Daasanach_all1 <- Daasanach_all %>%
+  select(id, sex, age, group, avgchange, proportion, avgchange_bmi)
+
+Hadza_all1 <- Hadza_all %>%
+  select(id, sex.x, age, group, avgchange.x, proportion, avgchange_bmi)
+
+Kung_all1 <- Kung_all %>%
+  select(id, sex.x, ageobs.x, group, avg_change, proportion, avgchange_bmi)
+
+
+colnames(Americans_all1)[2] = "sex"
+colnames(Americans_all1)[3] = "age"
+colnames(Americans_all1)[5] = "avgchange"
+colnames(Americans_all1)[7] = "avgchange_bmi"
+
+colnames(Hadza_all1)[2] = "sex"
+colnames(Hadza_all1)[5] = "avgchange"
+
+colnames(Kung_all1)[2] = "sex"
+colnames(Kung_all1)[3] = "age"
+colnames(Kung_all1)[5] = "avgchange"
+
+Combined_all <- rbind(Americans_all1, Daasanach_all1, Hadza_all1, Kung_all1)
+View(Combined_all)
+```
+
+```{r Combo BMI}
+Americans_all2 <- AmbmiSES %>%
+  select(id, sexm1, Age, group, BMI)
+Daasanach_all2 <- Daasanach_all %>%
+  select(id, sex, age, group, avgBMI)
+Hadza_all2 <- Hadza_all %>%
+  select(id, sex.x, age, group, bmi)
+Kung_all2 <- Kung_all %>%
+  select(id, sex.x, ageobs.x, group, bmi)
+
+colnames(Americans_all2)[2] = "sex"
+colnames(Americans_all2)[3] = "age"
+colnames(Americans_all2)[5] = "bmi"
+
+colnames(Daasanach_all2)[5] = "bmi"
+
+colnames(Hadza_all2)[2] = "sex"
+colnames(Hadza_all2)[5] = "bmi"
+
+colnames(Kung_all2)[2] = "sex"
+colnames(Kung_all2)[3] = "age"
+colnames(Kung_all2)[5] = "bmi"
+
+Combined_bmi <- rbind(Americans_all2, Daasanach_all2, Hadza_all2, Kung_all2)
+View(Combined_bmi)
+```
+
+
+```{r}
+ggplot(Combined_all, aes(x=group, y=avgchange_bmi, fill = group)) + 
+  geom_boxplot() +
+  theme(legend.position="none") +
+  coord_cartesian(ylim=c(-3,3)) +
+    labs(title = "Average Change in BMI per Year by Population",
+       x = "Population", y = "Average Change (units BMI/yr)")
+```
+
+```{r}
+anova.4 <- aov(avgchange_bmi ~ group, data=Combined_all)
+summary(anova.4)
+anova.thsd4 <- TukeyHSD(anova.4)
+anova.thsd4
+plot(anova.thsd4)
+
+```
+
+```{r}
+AmBMI_SESmale <- AmbmiSES %>%
+  filter(sexm1 == "Male")
+AmBMI_SESfemale <- AmbmiSES %>%
+  filter(sexm1 == "Female")
+
+ggplot(AmBMI_SESmale, aes(x=SES, y=BMI, fill = SES)) + 
+  geom_boxplot() +
+  scale_x_discrete(limits = c("Low", "LowMid", "MidHigh", "High")) +
+  theme(legend.position="none") +
+  coord_cartesian() +
+  labs(title = "BMI of American Males",
+       x = "SES", y = "BMI")
+  
+ggplot(AmBMI_SESfemale, aes(x=SES, y=BMI, fill = SES)) + 
+  geom_boxplot() +
+  scale_x_discrete(limits = c("Low", "LowMid", "MidHigh", "High")) +
+  theme(legend.position="none") +
+  coord_cartesian() +
+  labs(title = "BMI of American Females",
+       x = "SES", y = "BMI")
+
+ggplot(AmbmiSES, aes(x=SES, y=BMI, fill= sexm1)) + 
+  geom_boxplot() +
+   scale_x_discrete(limits = c("Low", "LowMid", "MidHigh", "High")) +
+  coord_cartesian() +
+   labs(title = "BMI of Americans by SES",
+       x = "SES", y = "Weight (kg)")
+
+ggplot(Am_avgbmiSES1, aes(x=SES, y=avgchange_bmi, fill = sexm1)) + 
+  geom_boxplot() +
+  scale_x_discrete(limits = c("Low", "LowMid", "MidHigh", "High")) +
+  #theme(legend.position="none") +
+  coord_cartesian(ylim=c(-2,2)) +
+    labs(title = "Average Change in BMI by SES",
+       x = "SES", y = "Average Change/Initial Weight")
+```
+
+```{r}
+anova.6 <- aov(BMI ~ SES, data=AmBMI_SESmale)
+summary(anova.6)
+anova.thsd6 <- TukeyHSD(anova.6)
+anova.thsd6
+plot(anova.thsd6)
+AmBMI_SESmale %>%
+  group_by(SES) %>%
+  summarize(median(BMI))
+```
+
+```{r}
+ggplot(Combined_bmi, aes(x=group, y=bmi, fill= sex)) + 
+  geom_boxplot() +
+  coord_cartesian() +
+   labs(title = "BMI by Population",
+       x = "Population", y = "BMI")
+```
+```{r}
+Am_avgbmiSES_f <- Am_avgbmiSES1 %>%
+  filter(sexm1 == "Female")
+View(Am_avgbmiSES_f)
+Am_avgbmiSES_m <- Am_avgbmiSES1 %>%
+  filter(sexm1 == "Male")
+
+ggplot(Am_avgbmiSES_f, aes(x=SES, y=avgchange_bmi)) + 
+  geom_boxplot() +
+  scale_x_discrete(limits = c("Low", "LowMid", "MidHigh", "High")) +
+  #theme(legend.position="none") +
+  coord_cartesian(ylim=c(-2,2)) +
+    labs(title = "Average Change in BMI by SES for American Females",
+       x = "SES", y = "Average Change/Initial Weight")
+```
+
+
+```{r}
+library(stargazer)
+b <- AmBMI_SESmale %>%
+  filter(SES == "High") %>%
+  filter(sexm1 == "Male")
+
+stargazer(b, type = "text", title = "Table 1", out = "table1.txt")
+```
+
+```{r}
+library(stargazer)
+anova.5 <- aov(avgchange_bmi ~ group, data=Combined_all)
+summary(anova.4)
+anova.thsd4 <- TukeyHSD(anova.4)
+anova.thsd4
+plot(anova.thsd4)
+```
